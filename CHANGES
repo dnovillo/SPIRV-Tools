@@ -17,6 +17,7 @@ v2017.1-dev 2017-09-01
      to a bit shift.
    - Extract-insert elimination: Recognize the case where the first instruction
      in the sequence is an OpCompositeConstruct or OpConstantComposite
+   - Add simple constant propagation
  - Fixes:
    #798: spirv-as should fail when given unrecognized long option
    #800: Inliner: Fix inlining function into header of multi-block loop
