@@ -279,7 +279,10 @@ spv_result_t ValidateOperandDebugType(ValidationState_t& _,
       SPV_EXT_INST_TYPE_NONSEMANTIC_SHADER_DEBUGINFO_100) {
     std::function<bool(NonSemanticShaderDebugInfo100Instructions)> expectation =
         [](NonSemanticShaderDebugInfo100Instructions dbg_inst) {
-          return dbg_inst == NonSemanticShaderDebugInfo100DebugTypeMatrix;
+          return dbg_inst == NonSemanticShaderDebugInfo100DebugTypeMatrix ||
+                 dbg_inst == NonSemanticShaderDebugInfo100DebugTypeCooperativeVectorNV ||
+                 dbg_inst == NonSemanticShaderDebugInfo100DebugTypeCooperativeMatrixNV ||
+                 dbg_inst == NonSemanticShaderDebugInfo100DebugTypeCooperativeMatrixKHR;
         };
     if (DoesDebugInfoOperandMatchExpectation(_, expectation, inst, word_index))
       return SPV_SUCCESS;
@@ -3162,6 +3165,10 @@ spv_result_t ValidateExtInstDebugInfo100(ValidationState_t& _,
       // ShaderDebugInfo100
       case NonSemanticShaderDebugInfo100DebugTypeBasic: {
         CHECK_CONST_UINT_OPERAND("Flags", 8);
+        // Optional FPEncoding parameter (5th operand, word index 9)
+        if (num_words > 9) {
+          CHECK_CONST_UINT_OPERAND("FPEncoding", 9);
+        }
         break;
       }
       case NonSemanticShaderDebugInfo100DebugDeclare: {
@@ -3195,6 +3202,26 @@ spv_result_t ValidateExtInstDebugInfo100(ValidationState_t& _,
                  << ": Vector Count must be positive "
                  << "integer less than or equal to 4";
         }
+        break;
+      }
+      case NonSemanticShaderDebugInfo100DebugTypeCooperativeVectorNV: {
+        CHECK_DEBUG_OPERAND("Component Type", CommonDebugInfoDebugTypeBasic, 5);
+        CHECK_CONST_UINT_OPERAND("Component Count", 6);
+        break;
+      }
+      case NonSemanticShaderDebugInfo100DebugTypeCooperativeMatrixNV: {
+        CHECK_DEBUG_OPERAND("Component Type", CommonDebugInfoDebugTypeBasic, 5);
+        CHECK_CONST_UINT_OPERAND("Scope", 6);
+        CHECK_CONST_UINT_OPERAND("Rows", 7);
+        CHECK_CONST_UINT_OPERAND("Columns", 8);
+        break;
+      }
+      case NonSemanticShaderDebugInfo100DebugTypeCooperativeMatrixKHR: {
+        CHECK_DEBUG_OPERAND("Component Type", CommonDebugInfoDebugTypeBasic, 5);
+        CHECK_CONST_UINT_OPERAND("Scope", 6);
+        CHECK_CONST_UINT_OPERAND("Rows", 7);
+        CHECK_CONST_UINT_OPERAND("Columns", 8);
+        CHECK_CONST_UINT_OPERAND("Use", 9);
         break;
       }
       case NonSemanticShaderDebugInfo100DebugFunctionDefinition: {
