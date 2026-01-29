@@ -36,8 +36,7 @@ deps = {
       Var('github') + '/google/re2.git@' + Var('re2_revision'),
 
   'external/spirv-headers':
-      Var('github') +  '/KhronosGroup/SPIRV-Headers.git@' +
-          Var('spirv_headers_revision'),
+      Var('github') +  '/dnovillo/SPIRV-Headers.git@nsdi110',
 
   'external/mimalloc':
       Var('github') + '/microsoft/mimalloc.git@' + Var('mimalloc_revision'),
