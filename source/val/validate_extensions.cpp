@@ -149,6 +149,33 @@ spv_result_t ValidateUint32ConstantOperandForDebugInfo(
   return SPV_SUCCESS;
 }
 
+// For NonSemantic.Shader.DebugInfo.110 cooperative type instructions, check
+// that the operand of |inst| at |word_index| is a result id of a 32-bit
+// unsigned integer constant instruction.  Unlike
+// ValidateUint32ConstantOperandForDebugInfo, this function accepts both
+// OpConstant and OpSpecConstant.  The SPIR-V cooperative types
+// (OpTypeCooperativeVectorNV, OpTypeCooperativeMatrixNV,
+// OpTypeCooperativeMatrixKHR) allow specialization constants for their
+// dimension parameters, and the debug type instructions must mirror that.
+spv_result_t ValidateUint32ConstOrSpecConstOperandForDebugInfo(
+    ValidationState_t& _, const std::string& operand_name,
+    const Instruction* inst, uint32_t word_index) {
+  const uint32_t id = inst->word(word_index);
+  const auto* def = _.FindDef(id);
+  if (!def || !spvOpcodeIsConstant(def->opcode())) {
+    return _.diag(SPV_ERROR_INVALID_DATA, inst)
+           << GetExtInstName(_, inst) << ": expected operand " << operand_name
+           << " must be a result id of a constant or specialization constant"
+              " instruction";
+  }
+  if (!IsIntScalar(_, def->type_id(), true, true)) {
+    return _.diag(SPV_ERROR_INVALID_DATA, inst)
+           << GetExtInstName(_, inst) << ": expected operand " << operand_name
+           << " must be a 32-bit unsigned integer type";
+  }
+  return SPV_SUCCESS;
+}
+
 #define CHECK_OPERAND(NAME, opcode, index)                                   \
   do {                                                                       \
     auto result = ValidateOperandForDebugInfo(_, NAME, opcode, inst, index); \
@@ -160,6 +187,16 @@ spv_result_t ValidateUint32ConstantOperandForDebugInfo(
     auto result =                                                        \
         ValidateUint32ConstantOperandForDebugInfo(_, NAME, inst, index); \
     if (result != SPV_SUCCESS) return result;                            \
+  }
+
+// Like CHECK_CONST_UINT_OPERAND but also allows OpSpecConstant.  Used for
+// NonSemantic.Shader.DebugInfo.110 cooperative type instructions, where
+// dimension operands may be specialization constants.
+#define CHECK_CONST_OR_SPEC_UINT_OPERAND(NAME, index)                        \
+  if (vulkanDebugInfo) {                                                      \
+    auto result = ValidateUint32ConstOrSpecConstOperandForDebugInfo(          \
+        _, NAME, inst, index);                                                \
+    if (result != SPV_SUCCESS) return result;                                 \
   }
 
 // True if the operand of a debug info instruction |inst| at |word_index|
@@ -3206,22 +3243,28 @@ spv_result_t ValidateExtInstDebugInfo100(ValidationState_t& _,
       }
       case NonSemanticShaderDebugInfo100DebugTypeCooperativeVectorNV: {
         CHECK_DEBUG_OPERAND("Component Type", CommonDebugInfoDebugTypeBasic, 5);
-        CHECK_CONST_UINT_OPERAND("Component Count", 6);
+        // Component Count may be OpSpecConstant when the cooperative vector
+        // type uses a specialization constant for its size.
+        CHECK_CONST_OR_SPEC_UINT_OPERAND("Component Count", 6);
         break;
       }
       case NonSemanticShaderDebugInfo100DebugTypeCooperativeMatrixNV: {
         CHECK_DEBUG_OPERAND("Component Type", CommonDebugInfoDebugTypeBasic, 5);
-        CHECK_CONST_UINT_OPERAND("Scope", 6);
-        CHECK_CONST_UINT_OPERAND("Rows", 7);
-        CHECK_CONST_UINT_OPERAND("Columns", 8);
+        // Scope, Rows, and Columns may be OpSpecConstant when the cooperative
+        // matrix type uses specialization constants for its dimensions.
+        CHECK_CONST_OR_SPEC_UINT_OPERAND("Scope", 6);
+        CHECK_CONST_OR_SPEC_UINT_OPERAND("Rows", 7);
+        CHECK_CONST_OR_SPEC_UINT_OPERAND("Columns", 8);
         break;
       }
       case NonSemanticShaderDebugInfo100DebugTypeCooperativeMatrixKHR: {
         CHECK_DEBUG_OPERAND("Component Type", CommonDebugInfoDebugTypeBasic, 5);
-        CHECK_CONST_UINT_OPERAND("Scope", 6);
-        CHECK_CONST_UINT_OPERAND("Rows", 7);
-        CHECK_CONST_UINT_OPERAND("Columns", 8);
-        CHECK_CONST_UINT_OPERAND("Use", 9);
+        // Scope, Rows, Columns, and Use may be OpSpecConstant when the
+        // cooperative matrix type uses specialization constants.
+        CHECK_CONST_OR_SPEC_UINT_OPERAND("Scope", 6);
+        CHECK_CONST_OR_SPEC_UINT_OPERAND("Rows", 7);
+        CHECK_CONST_OR_SPEC_UINT_OPERAND("Columns", 8);
+        CHECK_CONST_OR_SPEC_UINT_OPERAND("Use", 9);
         break;
       }
       case NonSemanticShaderDebugInfo100DebugFunctionDefinition: {
